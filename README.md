@@ -16,6 +16,10 @@ make deploy-microk8s
 make deploy-microceph
 make microk8s-enable-ceph
 
-multipass transfer ./stateful-set.yaml node-1:
-multipass exec node-1 -- sudo microk8s kubectl apply -f ./stateful-set.yaml
+make deploy-stateful-set
 ```
+
+## Architecture
+
+![](./attachments/microk8s-with-microceph.png)
+![](./attachments/microceph-architecture.png)
