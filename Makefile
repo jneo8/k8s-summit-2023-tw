@@ -1,5 +1,6 @@
 SHELL := /bin/bash
 NODES = 1 2 3
+MULTIPASS_EXEC_CMD = multipass exec node-1
 
 ##@ Install
 install-dependency:
@@ -25,19 +26,23 @@ deploy-microk8s:  ## Deploy microk8s on vms
 	done
 	for number in ${NODES} ; do \
 		if [ $$number != 1 ]; then \
-			join_cmd=$$(multipass exec node-1 -- sudo microk8s add-node | grep "microk8s join" | head -n 1) ; \
+			join_cmd=$$(${MULTIPASS_EXEC_CMD} -- sudo microk8s add-node | grep "microk8s join" | head -n 1) ; \
 			multipass exec node-$$number -- sudo $$join_cmd ; \
 		fi \
 	done
-	multipass exec node-1 -- sudo microk8s kubectl get no
+	${MULTIPASS_EXEC_CMD} -- sudo microk8s kubectl get no
 
 
 microk8s-enable-ceph:  ## Enable rook-ceph addon
-	multipass exec node-1 -- sudo microk8s enable rook-ceph
-	multipass exec node-1 -- sudo microk8s connect-external-ceph
+	${MULTIPASS_EXEC_CMD} -- sudo microk8s enable rook-ceph
+	${MULTIPASS_EXEC_CMD} -- sudo microk8s connect-external-ceph
 
 
-.PHONY: deploy-microk8s microk8s-enable-ceph
+deploy-stateful-set:  ## Deploy stateful-set to microk8s
+	multipass transfer ./stateful-set.yaml node-1:
+	${MULTIPASS_EXEC_CMD} -- sudo microk8s kubectl apply -f ./stateful-set.yaml
+
+.PHONY: deploy-microk8s microk8s-enable-ceph deploy-stateful-set
 
 ##@ Ceph
 
@@ -48,15 +53,15 @@ deploy-microceph:  ## Deploy microceph on vms
 	done
 
 	# Bootstrap & add nodes to cluster
-	multipass exec node-1 -- sudo microceph cluster bootstrap
-	multipass exec node-1 -- sudo microceph cluster list
+	${MULTIPASS_EXEC_CMD} -- sudo microceph cluster bootstrap
+	${MULTIPASS_EXEC_CMD} -- sudo microceph cluster list
 	for number in ${NODES} ; do \
 		if [ $$number != 1 ]; then \
-			token=$$(multipass exec node-1 -- sudo microceph cluster add node-$$number) ; \
+			token=$$(${MULTIPASS_EXEC_CMD} -- sudo microceph cluster add node-$$number) ; \
 			multipass exec node-$$number -- sudo microceph cluster join $$token ; \
 		fi \
 	done
-	multipass exec node-1 -- sudo microceph cluster list
+	${MULTIPASS_EXEC_CMD} -- sudo microceph cluster list
 
 	# Add OSDs
 	for number in ${NODES} ; do \
@@ -71,21 +76,25 @@ deploy-microceph:  ## Deploy microceph on vms
 			done' ; \
 	done
 	# Show status
-	multipass exec node-1 -- bash -c  \
-		'sudo microceph status ; \
-		sudo microceph.ceph status ; \
-		sudo microceph disk list ; \
-		'
+	${MULTIPASS_EXEC_CMD} -- sudo microceph status
+	${MULTIPASS_EXEC_CMD} -- sudo microceph.ceph status
+	${MULTIPASS_EXEC_CMD} -- sudo microceph disk list
 
 
 ceph-status:  ## Show ceph status
-	multipass exec node-1 -- bash -c  \
-		'sudo microceph status ; \
-		sudo microceph.ceph status ; \
-		sudo microceph disk list ; \
-		'
+	${MULTIPASS_EXEC_CMD} -- sudo microceph status
+	${MULTIPASS_EXEC_CMD} -- sudo microceph.ceph status
+	${MULTIPASS_EXEC_CMD} -- sudo microceph disk list
 
-.PHONY: deploy-microceph ceph-status
+ceph-enable-dashboard:  ## Enable ceph dashboard
+	${MULTIPASS_EXEC_CMD} -- sudo microceph.ceph mgr module enable dashboard
+	${MULTIPASS_EXEC_CMD} -- sudo microceph.ceph dashboard create-self-signed-cert
+	${MULTIPASS_EXEC_CMD} -- bash -c 'echo adminadmin | sudo tee /root/pwd.txt'
+	${MULTIPASS_EXEC_CMD} -- sudo microceph.ceph dashboard ac-user-create admin -i /root/pwd.txt administrator
+	${MULTIPASS_EXEC_CMD} -- sudo microceph.ceph mgr services
+
+
+.PHONY: deploy-microceph ceph-status ceph-enable-dashboard
 
 
 ##@ Help
