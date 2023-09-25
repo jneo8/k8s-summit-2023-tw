@@ -1,60 +1,3 @@
-# Microk8s architecture
-
-## Projects
-
-- [microk8s](https://github.com/canonical/microk8s)
-- [kubernetes-dqlite](https://github.com/canonical/kubernetes-dqlite)
-- [k8s-dqlite](https://github.com/canonical/k8s-dqlite)
-- [microk8s-cluster-agent](https://github.com/canonical/microk8s-cluster-agent)
-- [microk8s-core-addons](https://github.com/canonical/microk8s-core-addons)
-- [microk8s-community-addons](https://github.com/canonical/microk8s-community-addons)
-
-
-## Refenences
-
-- https://microk8s.io/docs/configuring-services
-- https://microk8s.io/docs/services-and-ports
-
-
-## Default services when install microk8s
-
-
-```
-microk8s.daemon-apiserver-kicker  enabled  active    -
-microk8s.daemon-apiserver-proxy   enabled  inactive  -
-microk8s.daemon-cluster-agent     enabled  active    -
-microk8s.daemon-containerd        enabled  active    -
-microk8s.daemon-etcd              enabled  inactive  -
-microk8s.daemon-flanneld          enabled  inactive  -
-microk8s.daemon-k8s-dqlite        enabled  active    -
-microk8s.daemon-kubelite          enabled  active    -
-```
-
-## Trace into code
-
-```sh
-git clone https://github.com/canonical/kubernetes-dqlite.git
-cd kubernetes-dqlite
-git remote add upstream https://github.com/kubernetes/kubernetes.git
-
-git list-remote origin | grep release
-git list-remote upstream | grep release
-
-git diff upstream/release-1.22 origin/release-1.22 --stat
-git diff upstream/release-1.22 origin/release-1.22 --patch-with-stat
-```
-
-### cmd/kube-apiserver
-
-Run kvsqlserver when start the apiserver.
-
-- **EtcdOptions.AddFlags**
-    - https://github.com/kubernetes/apiserver/blob/a02dbeed8d6e0b601f518d2c007482e08ed5c36b/pkg/server/options/etcd.go#L114
-- **NewAPIServerCommand, Run function**
-    - https://github.com/canonical/kubernetes-dqlite/blob/36a416b4464c9aec30bc47737a7f5e6301cc9f04/cmd/kube-apiserver/app/server.go#L174
-
-
-```git
  cmd/kube-apiserver/app/aggregator.go           |  9 +++---
  cmd/kube-apiserver/app/options/options.go      | 11 ++-----
  cmd/kube-apiserver/app/options/options_test.go |  5 ++-
@@ -255,4 +198,3 @@ index 8b23c685fc8..bd4aee5765e 100644
  	capabilities.Initialize(capabilities.Capabilities{
  		AllowPrivileged: s.AllowPrivileged,
  		// TODO(vmarmol): Implement support for HostNetworkSources.
-```
