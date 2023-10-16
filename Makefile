@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 NODES = 1 2 3
-MULTIPASS_EXEC_CMD = multipass exec node-1
+EXEC_ON_FIRST_NODE = multipass exec node-1
 
 ##@ Install
 install-dependency:
@@ -26,21 +26,21 @@ deploy-microk8s:  ## Deploy microk8s on vms
 	done
 	for number in ${NODES} ; do \
 		if [ $$number != 1 ]; then \
-			join_cmd=$$(${MULTIPASS_EXEC_CMD} -- sudo microk8s add-node | grep "microk8s join" | head -n 1) ; \
+			join_cmd=$$(${EXEC_ON_FIRST_NODE} -- sudo microk8s add-node | grep "microk8s join" | head -n 1) ; \
 			multipass exec node-$$number -- sudo $$join_cmd ; \
 		fi \
 	done
-	${MULTIPASS_EXEC_CMD} -- sudo microk8s kubectl get no
+	${EXEC_ON_FIRST_NODE} -- sudo microk8s kubectl get no
 
 
 microk8s-enable-ceph:  ## Enable rook-ceph addon
-	${MULTIPASS_EXEC_CMD} -- sudo microk8s enable rook-ceph
-	${MULTIPASS_EXEC_CMD} -- sudo microk8s connect-external-ceph
+	${EXEC_ON_FIRST_NODE} -- sudo microk8s enable rook-ceph
+	${EXEC_ON_FIRST_NODE} -- sudo microk8s connect-external-ceph
 
 
 deploy-stateful-set:  ## Deploy stateful-set to microk8s
 	multipass transfer ./stateful-set.yaml node-1:
-	${MULTIPASS_EXEC_CMD} -- sudo microk8s kubectl apply -f ./stateful-set.yaml
+	${EXEC_ON_FIRST_NODE} -- sudo microk8s kubectl apply -f ./stateful-set.yaml
 
 .PHONY: deploy-microk8s microk8s-enable-ceph deploy-stateful-set
 
@@ -53,15 +53,15 @@ deploy-microceph:  ## Deploy microceph on vms
 	done
 
 	# Bootstrap & add nodes to cluster
-	${MULTIPASS_EXEC_CMD} -- sudo microceph cluster bootstrap
-	${MULTIPASS_EXEC_CMD} -- sudo microceph cluster list
+	${EXEC_ON_FIRST_NODE} -- sudo microceph cluster bootstrap
+	${EXEC_ON_FIRST_NODE} -- sudo microceph cluster list
 	for number in ${NODES} ; do \
 		if [ $$number != 1 ]; then \
-			token=$$(${MULTIPASS_EXEC_CMD} -- sudo microceph cluster add node-$$number) ; \
+			token=$$(${EXEC_ON_FIRST_NODE} -- sudo microceph cluster add node-$$number) ; \
 			multipass exec node-$$number -- sudo microceph cluster join $$token ; \
 		fi \
 	done
-	${MULTIPASS_EXEC_CMD} -- sudo microceph cluster list
+	${EXEC_ON_FIRST_NODE} -- sudo microceph cluster list
 
 	# Add OSDs
 	for number in ${NODES} ; do \
@@ -76,22 +76,22 @@ deploy-microceph:  ## Deploy microceph on vms
 			done' ; \
 	done
 	# Show status
-	${MULTIPASS_EXEC_CMD} -- sudo microceph status
-	${MULTIPASS_EXEC_CMD} -- sudo microceph.ceph status
-	${MULTIPASS_EXEC_CMD} -- sudo microceph disk list
+	${EXEC_ON_FIRST_NODE} -- sudo microceph status
+	${EXEC_ON_FIRST_NODE} -- sudo microceph.ceph status
+	${EXEC_ON_FIRST_NODE} -- sudo microceph disk list
 
 
 ceph-status:  ## Show ceph status
-	${MULTIPASS_EXEC_CMD} -- sudo microceph status
-	${MULTIPASS_EXEC_CMD} -- sudo microceph.ceph status
-	${MULTIPASS_EXEC_CMD} -- sudo microceph disk list
+	${EXEC_ON_FIRST_NODE} -- sudo microceph status
+	${EXEC_ON_FIRST_NODE} -- sudo microceph.ceph status
+	${EXEC_ON_FIRST_NODE} -- sudo microceph disk list
 
 ceph-enable-dashboard:  ## Enable ceph dashboard
-	${MULTIPASS_EXEC_CMD} -- sudo microceph.ceph mgr module enable dashboard
-	${MULTIPASS_EXEC_CMD} -- sudo microceph.ceph dashboard create-self-signed-cert
-	${MULTIPASS_EXEC_CMD} -- bash -c 'echo adminadmin | sudo tee /root/pwd.txt'
-	${MULTIPASS_EXEC_CMD} -- sudo microceph.ceph dashboard ac-user-create admin -i /root/pwd.txt administrator
-	${MULTIPASS_EXEC_CMD} -- sudo microceph.ceph mgr services
+	${EXEC_ON_FIRST_NODE} -- sudo microceph.ceph mgr module enable dashboard
+	${EXEC_ON_FIRST_NODE} -- sudo microceph.ceph dashboard create-self-signed-cert
+	${EXEC_ON_FIRST_NODE} -- bash -c 'echo adminadmin | sudo tee /root/pwd.txt'
+	${EXEC_ON_FIRST_NODE} -- sudo microceph.ceph dashboard ac-user-create admin -i /root/pwd.txt administrator
+	${EXEC_ON_FIRST_NODE} -- sudo microceph.ceph mgr services
 
 
 .PHONY: deploy-microceph ceph-status ceph-enable-dashboard
